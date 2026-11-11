@@ -20,6 +20,8 @@ class GfxActivity : Activity() {
     private var pal = ByteArray(32)
     private var tw = 8
     private var color = 1
+    private var all = false
+    private var allN = 1
     private var gDirty = false
     private var pDirty = false
     private val colors = IntArray(16)
@@ -48,7 +50,7 @@ class GfxActivity : Activity() {
         root.addView(sw, LinearLayout.LayoutParams(mp, 90))
         root.addView(row("◀ Gfx" to { stepG(-1) }, "Gfx ▶" to { stepG(1) }, "Largura" to { nextWidth() }))
         root.addView(row("◀ Pal" to { stepP(-1) }, "Pal ▶" to { stepP(1) }, "Sub-pal" to { nextSub() }))
-        root.addView(row("Ir p/ offset" to { jump() }, "Aplicar na ROM" to { applyChanges() }))
+        root.addView(row("Ir p/ offset" to { jump() }, "Ver tudo" to { all = !all; if (all) tw = 16; render() }, "Aplicar na ROM" to { applyChanges() }))
         setContentView(root)
         resetPal()
         scan()
@@ -156,9 +158,23 @@ class GfxActivity : Activity() {
         }
     }
 
+    private fun buildAll(): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        var n = 0
+        var k = gi
+        while (n < gfx.size && out.size() < 2048 * 32) {
+            val d = Lz77.decompress(rom, gfx[k % gfx.size])
+            if (d != null) out.write(d.first)
+            k++; n++
+        }
+        allN = n
+        return out.toByteArray()
+    }
+
     private fun render() {
         palColors()
-        val nt = tiles.size / 32
+        val src = if (all) buildAll() else tiles
+        val nt = src.size / 32
         val th = (nt + tw - 1) / tw
         val w = tw * 8
         val h = th * 8
@@ -167,7 +183,7 @@ class GfxActivity : Activity() {
             val tx = (t % tw) * 8
             val ty = (t / tw) * 8
             for (p in 0 until 64) {
-                val bv = tiles[t * 32 + p / 2].toInt() and 0xFF
+                val bv = src[t * 32 + p / 2].toInt() and 0xFF
                 val idx = if (p % 2 == 0) bv and 15 else bv shr 4
                 px[(ty + p / 8) * w + tx + p % 8] = colors[idx]
             }
@@ -180,7 +196,7 @@ class GfxActivity : Activity() {
         buildSwatches()
         val g = if (gfx.isEmpty()) "-" else "${gi + 1}/${gfx.size} @0x${hex(gfx[gi])}"
         val p = if (pals.isEmpty()) "padrão (cinza)" else "${pi + 1}/${pals.size} @0x${hex(pals[pi])}"
-        info.text = "Gfx $g • ${nt} tiles\nPal $p • sub $sub${if (gDirty || pDirty) "  ✎ não aplicado" else ""}"
+        info.text = "${if (all) "VER TUDO ($allN blocos) " else ""}Gfx $g • ${nt} tiles\nPal $p • sub $sub${if (gDirty || pDirty) "  ✎ não aplicado" else ""}"
     }
 
     private fun buildSwatches() {
@@ -201,6 +217,7 @@ class GfxActivity : Activity() {
     }
 
     private fun paintPixel(x: Int, y: Int) {
+        if (all) return
         val t = (y / 8) * tw + x / 8
         if (t * 32 >= tiles.size) return
         val p = (y % 8) * 8 + x % 8
@@ -246,6 +263,11 @@ class GfxActivity : Activity() {
     }
 
     private fun stepG(d: Int) {
+        if (all) {
+            gi = (((gi + d * allN) % gfx.size) + gfx.size) % gfx.size
+            render()
+            return
+        }
         if (gDirty) toast("Alterações não aplicadas foram descartadas")
         loadGfx(gi + d)
     }

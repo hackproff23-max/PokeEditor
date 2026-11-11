@@ -12,6 +12,14 @@ android {
         versionCode 1
         versionName '1.0'
     }
+    signingConfigs {
+        debug {
+            storeFile file('pokeeditor.jks')
+            storePassword 'pokeeditor123'
+            keyAlias 'pokeeditor'
+            keyPassword 'pokeeditor123'
+        }
+    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
