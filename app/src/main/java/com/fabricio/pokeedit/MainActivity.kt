@@ -13,6 +13,7 @@ class MainActivity : Activity() {
     private var romUri: Uri? = null
     private var base = 0
     private var names = 0
+    private var statsOk = false
     private val count = 412
     private lateinit var list: ListView
     private lateinit var info: TextView
@@ -40,7 +41,8 @@ class MainActivity : Activity() {
         val open = Button(this); open.text = "Abrir ROM"
         val save = Button(this); save.text = "Salvar ROM"
         val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        row.addView(open, lp); row.addView(save, lp)
+        val tex = Button(this); tex.text = "Texturas"
+        row.addView(open, lp); row.addView(save, lp); row.addView(tex, lp)
         info = TextView(this); info.text = "Abra uma ROM de Pokémon GBA (FireRed, LeafGreen, Emerald, Ruby, Sapphire - v1.0)"
         list = ListView(this)
         root.addView(row); root.addView(info); root.addView(list)
@@ -54,6 +56,10 @@ class MainActivity : Activity() {
             startActivityForResult(i, REQ_OPEN)
         }
         save.setOnClickListener { saveRom() }
+        tex.setOnClickListener {
+            if (Rom.data == null) toast("Abra uma ROM primeiro")
+            else startActivity(Intent(this, GfxActivity::class.java))
+        }
         list.setOnItemClickListener { _, _, pos, _ -> editMon(pos) }
     }
 
@@ -69,19 +75,21 @@ class MainActivity : Activity() {
         try {
             val bytes = contentResolver.openInputStream(uri)!!.use { it.readBytes() }
             val code = String(bytes, 0xAC, 4, Charsets.US_ASCII)
+            rom = bytes; romUri = uri; Rom.data = bytes
+            statsOk = false
+            list.adapter = null
             val g = games[code]
-            if (g == null || bytes.size < 0x1000000) {
-                toast("ROM não suportada: $code"); return
+            if (g != null && bytes.size >= 0x1000000) {
+                base = g.first; names = g.second
+                if (name(1) == "BULBASAUR") statsOk = true
             }
-            base = g.first; names = g.second
-            rom = bytes; romUri = uri
-            if (name(1) != "BULBASAUR") {
-                rom = null
-                toast("Versão/revisão não suportada (offsets não batem)"); return
+            if (statsOk) {
+                val items = (0 until count).map { String.format("#%03d  %s", it, name(it)) }
+                list.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, items)
+                info.text = "$code carregada — toque num Pokémon para editar ou abra Texturas"
+            } else {
+                info.text = "$code carregada. Stats não suportados nesta ROM, mas Texturas funcionam"
             }
-            val items = (0 until count).map { String.format("#%03d  %s", it, name(it)) }
-            list.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, items)
-            info.text = "$code carregada — toque num Pokémon para editar"
         } catch (e: Exception) { toast("Erro: ${e.message}") }
     }
 
@@ -147,7 +155,7 @@ class MainActivity : Activity() {
     }
 
     private fun editMon(idx: Int) {
-        if (rom == null) return
+        if (rom == null || !statsOk) return
         val o = base + idx * 28
         val col = LinearLayout(this)
         col.orientation = LinearLayout.VERTICAL
