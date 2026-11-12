@@ -42,7 +42,8 @@ class MainActivity : Activity() {
         val save = Button(this); save.text = "Salvar ROM"
         val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         val tex = Button(this); tex.text = "Texturas"
-        row.addView(open, lp); row.addView(save, lp); row.addView(tex, lp)
+        val maps = Button(this); maps.text = "Mapas"
+        row.addView(open, lp); row.addView(save, lp); row.addView(tex, lp); row.addView(maps, lp)
         info = TextView(this); info.text = "Abra uma ROM de Pokémon GBA (FireRed, LeafGreen, Emerald, Ruby, Sapphire - v1.0)"
         list = ListView(this)
         root.addView(row); root.addView(info); root.addView(list)
@@ -59,6 +60,10 @@ class MainActivity : Activity() {
         tex.setOnClickListener {
             if (Rom.data == null) toast("Abra uma ROM primeiro")
             else startActivity(Intent(this, GfxActivity::class.java))
+        }
+        maps.setOnClickListener {
+            if (Rom.data == null) toast("Abra uma ROM primeiro")
+            else startActivity(Intent(this, MapActivity::class.java))
         }
         list.setOnItemClickListener { _, _, pos, _ -> editMon(pos) }
     }
@@ -86,9 +91,9 @@ class MainActivity : Activity() {
             if (statsOk) {
                 val items = (0 until count).map { String.format("#%03d  %s", it, name(it)) }
                 list.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, items)
-                info.text = "$code carregada — toque num Pokémon para editar ou abra Texturas"
+                info.text = "$code carregada — toque num Pokémon para editar, ou abra Texturas / Mapas"
             } else {
-                info.text = "$code carregada. Stats não suportados nesta ROM, mas Texturas funcionam"
+                info.text = "$code carregada. Stats não suportados nesta ROM, mas Texturas e Mapas funcionam"
             }
         } catch (e: Exception) { toast("Erro: ${e.message}") }
     }
@@ -185,12 +190,9 @@ class MainActivity : Activity() {
                 rom!![o + 9] = n(fExp)
                 rom!![o + 22] = n(fA1)
                 rom!![o + 23] = n(fA2)
-                (list.adapter as ArrayAdapter<String>).let {
-                    // refresh name in list
-                    val items = (0 until count).map { i -> String.format("#%03d  %s", i, name(i)) }
-                    list.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, items)
-                    list.setSelection(idx)
-                }
+                val items = (0 until count).map { i -> String.format("#%03d  %s", i, name(i)) }
+                list.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, items)
+                list.setSelection(idx)
                 toast("Aplicado (falta Salvar ROM)")
             }.show()
     }
